@@ -1,0 +1,24 @@
+{
+  "name": "evoting-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "E-Voting: monorepo root – contracts, backend, frontend",
+  "scripts": {
+    "install:all": "npm install && cd contracts && npm install && cd ../backend && npm install && cd ../frontend && npm install",
+    "node": "cd contracts && npx hardhat node",
+    "deploy": "cd contracts && npx hardhat run scripts/deploy_combined.js --network localhost",
+    "backend": "cd backend && node server.js",
+    "frontend": "cd frontend && npm run dev",
+    "dev": "node scripts/dev.js",
+    "dev:node": "npm run node",
+    "dev:deploy": "npm run deploy",
+    "dev:backend": "npm run backend",
+    "dev:frontend": "npm run frontend",
+    "lint": "npm --prefix frontend run lint",
+    "test": "npm --prefix backend test && npm --prefix contracts test",
+    "ci": "npm run lint && npm run test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

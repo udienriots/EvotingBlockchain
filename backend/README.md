@@ -1,0 +1,89 @@
+# E-Voting Backend Server
+
+Backend ini dibangun dengan Node.js + Express dan berperan sebagai lapisan API untuk autentikasi, manajemen user, proses DID/VC, upload aset kandidat, serta relay event blockchain ke frontend melalui Socket.IO.
+
+## Endpoint utama
+
+- `GET /` untuk health check backend.
+- `POST /api/auth/login` untuk login admin atau mahasiswa. Access token dan refresh token dikirim sebagai cookie httpOnly, bukan body JSON.
+- `POST /api/auth/refresh` untuk rotasi refresh token cookie menjadi token pair baru.
+- `POST /api/auth/logout` untuk menghapus refresh token aktif dan membersihkan cookie auth.
+- `GET /api/auth/me` untuk membaca identitas user dari access token.
+- `PUT /api/auth/change-password` untuk mengganti password user yang sedang login.
+- `POST /api/did/admin-wallet/challenge` untuk membuat challenge bind wallet admin.
+- `GET /api/did/admin-wallet/status/:address` untuk mengecek apakah wallet cocok dengan admin login dan sudah punya `ADMIN_ROLE`.
+- `POST /api/did/admin-wallet/bind` untuk verifikasi signature admin wallet dan memberi `ADMIN_ROLE`.
+- `POST /api/did/bind/challenge` untuk membuat challenge wallet binding.
+- `POST /api/did/bind` untuk memverifikasi signature challenge lalu mengikat wallet ke NIM dan menerbitkan VC.
+- `GET /api/did/status/:address` untuk mengecek status binding wallet dan status NFT.
+- `POST /api/did/verify-and-register` untuk verifikasi VC lalu mint Student NFT via akun admin backend.
+- `GET /api/users/list` untuk pencarian daftar mahasiswa oleh admin.
+- `POST /api/users/create` untuk membuat akun mahasiswa baru.
+- `POST /api/users/bulk-import` untuk import mahasiswa dari file `CSV`, `XLS`, atau `XLSX`; kolom yang dipakai adalah NIM dan nama, sementara password default massal adalah `password123`.
+- `POST /api/users/resolve-voter-addresses` untuk membantu admin mengubah daftar NIM/alamat menjadi address allowlist.
+- `GET /api/users/admins` untuk membaca daftar akun admin.
+- `POST /api/users/create-admin` untuk membuat akun admin baru dan opsional langsung memberi role wallet di kontrak.
+- `POST /api/users/bind-admin-wallet` untuk menautkan wallet admin yang sedang login.
+- `POST /api/upload` untuk upload gambar kandidat oleh admin.
+- `POST /api/candidates/metadata` untuk menyimpan metadata kandidat off-chain (foto, visi, misi).
+- `GET /api/read-model/sessions` untuk membaca daftar sesi dari cache/read model blockchain.
+- `GET /api/read-model/sessions/:sessionId/results` untuk membaca hasil sesi.
+- `GET /api/read-model/sessions/:sessionId/stats` untuk statistik sesi dan partisipasi.
+- `GET /api/read-model/sessions/:sessionId/allowlist` untuk membaca allowlist sesi.
+
+## Fitur implementasi saat ini
+
+- JWT access token dan refresh token via cookie httpOnly (`token`, `refreshToken`), dengan fallback header `Authorization: Bearer <token>` untuk Postman/cURL.
+- Pemisahan role `admin` dan `user`, plus proteksi `studentOnlyMiddleware` pada route DID.
+- Wallet bind berbasis challenge yang ditandatangani user, bukan bind langsung tanpa proof-of-ownership.
+- Verifiable Credential yang ditandatangani dengan `did-jwt`.
+- Mint Student NFT melalui backend menggunakan `ADMIN_PRIVATE_KEY`.
+- Rate limit terpisah untuk API umum, auth, refresh token, DID, voting, dan operasi admin.
+- CORS terpusat untuk Express dan Socket.IO melalui [config/corsPolicy.js](/media/udien/DATA/Kuliah/Skripsi/maybe%20fix/backend/config/corsPolicy.js:1).
+- Upload gambar dengan validasi MIME/ekstensi dan URL file yang dapat ditandatangani.
+- Swagger/OpenAPI di `/api-docs` dan `/api-docs.json`.
+
+## Menjalankan backend
+
+1. Masuk ke folder `backend`.
+2. Install dependency dengan `npm install`.
+3. Salin `backend/.env.example` menjadi `backend/.env`.
+4. Isi variabel yang dibutuhkan, terutama `JWT_SECRET`, `JWT_REFRESH_SECRET`, `ADMIN_PRIVATE_KEY`, dan `VC_ISSUER_PRIVATE_KEY`.
+5. Jalankan server dengan `npm start` atau `npm run dev`.
+
+Catatan: script `dev` saat ini memakai `node --watch server.js`, sehingga server restart otomatis saat file backend berubah.
+
+## Environment variables
+
+Ringkasan lengkap ada di [`ENV_SETUP.md`](./ENV_SETUP.md). Variabel yang penting:
+
+- `PORT` untuk port backend, default `3001`.
+- `NODE_ENV` untuk mode runtime.
+- `MONGO_URI` untuk koneksi MongoDB.
+- `FRONTEND_URL` atau `CORS_ORIGINS` untuk whitelist origin frontend.
+- `JWT_SECRET` dan `JWT_REFRESH_SECRET` untuk autentikasi.
+- `ADMIN_PRIVATE_KEY` untuk mint Student NFT.
+- `VC_ISSUER_PRIVATE_KEY` dan opsional `VC_ISSUER_DID` untuk VC issuer.
+- `BLOCKCHAIN_RPC_URL` untuk akses blockchain.
+- `VOTING_SYSTEM_ADDRESS` untuk alamat kontrak.
+
+Variabel opsional yang juga dipakai kode:
+
+- `BLOCKCHAIN_WS_URL` untuk listener event via WebSocket.
+- `EVENT_POLL_INTERVAL_MS` untuk polling fallback event.
+- `EVENT_POLL_BACKUP=true` jika ingin memaksa polling walau WS aktif.
+- `CONTRACT_DEPLOY_BLOCK` atau `NEXT_PUBLIC_CONTRACT_DEPLOY_BLOCK` untuk mempercepat read model saat memindai event kontrak.
+- `READ_MODEL_CACHE_TTL_MS` untuk TTL cache read model.
+- `READ_MODEL_EVENT_CHUNK_SIZE` untuk ukuran chunk event scan.
+- `ENABLE_API_DOCS=true` untuk membuka Swagger di production.
+- `BACKEND_URL` untuk base URL upload file.
+- `UPLOAD_ALLOW_UNSIGNED=true` untuk mengizinkan akses file upload tanpa signature di production.
+
+## Swagger
+
+Dokumentasi API interaktif tersedia di:
+
+- `http://localhost:3001/api-docs`
+- `http://localhost:3001/api-docs.json`
+
+Di production, Swagger hanya aktif bila `ENABLE_API_DOCS=true`.
